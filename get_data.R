@@ -7,6 +7,10 @@ library(stringr)
 library(lubridate)
 library(RPostgreSQL)
 
+
+# dostęp do bazy danych
+source("db_login.R")
+
 # założenia:
 # Grecja, wyjazd od 1.09, powrót do 30.09
 # Samolotem z Warszawy, 2 dorosłych, 2 dzieci (4 i 7 lat)
@@ -170,14 +174,9 @@ wyniki <- wyniki %>%
           hotel_nazwa = trimws(hotel_nazwa))
 
 
-
 # zapisanie danych do bazy
-dbname = "postgres"
-user = "lemur"
-password = "pr0cma1l"
-host = "localhost"
 
 sterownik <- dbDriver("PostgreSQL")
-polaczenie <- dbConnect(sterownik, dbname = dbname, user = user, password = password, host = host)
+polaczenie <- dbConnect(sterownik, dbname = dbname, user = dbuser, password = dbpassword, host = dbhost)
 dbWriteTable(polaczenie, "wycieczki_grecja", wyniki, append = TRUE, row.names = FALSE)
 dbDisconnect(polaczenie)
