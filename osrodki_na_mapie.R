@@ -31,7 +31,7 @@ ggplot() +
 
 
 oceny <- left_join(miejsca,
-                   wycieczki_db %>% select(region, miejscowosc, wycieczki_db),
+                   wycieczki_db %>% select(region, miejscowosc, ocena_wycieczki),
                    by = c("region"="region", "miejscowosc"="miejscowosc")) %>%
   group_by(lon, lat) %>%
   summarise(mocena = mean(ocena_wycieczki, na.rm = TRUE)) %>%

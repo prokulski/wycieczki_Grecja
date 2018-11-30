@@ -4,8 +4,8 @@ author: "Łukasz Prokulski"
 date: "`r Sys.Date()`"
 output: 
   html_document: 
-    fig_height: 6
-    fig_width: 8
+    fig_height: 7
+    fig_width: 9
     fig_align: "center"
     self_contained: no
 ---
@@ -19,41 +19,511 @@ library(kableExtra)
 opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
 options(knitr.table.format = "html") 
 
-# some better colours theme :)
-theme_set(theme_minimal() +
-            theme(plot.title = element_text(family = NULL, face = "bold", size = 18, color = "black"),
-                  plot.subtitle = element_text(family = NULL, face = "plain", size = 9, color = "black"),
-                  plot.caption = element_text(family = NULL, face = "italic", size = 9, color = "darkgray"),
-                  plot.background = element_rect(fill="#efefef", color="#aaaaaa"),
-                  panel.background = element_rect(fill = "white", color="black"),
-                  strip.text.x = element_text(face = "bold")))
-
 source("/home/lemur/RProjects/!Rmarkdown_templates/da_plot.R")
 ```
 
+Ile kosztuje wycieczka do Grecji? Czy *last minute* jest opłacalne i kiedy cena zaczyna spadać? Jak znaleźć najbardziej atrakcyjne miejsce na wypoczynek (w Grecji)?
+
+Jakiś czas temu **[analizowałem raporty](/index.php/2018/04/27/gdzie-polacy-jada-na-wakacje/)** [publikowane przez Polski Związek Organizatorów Turystyki](http://www.pzot.pl/index.php?module=cms/files&group=Raporty%20PZOT). Z analizy wyszło, że najchętniej jeździmy na wypoczynek do Grecji (tak było w drugiej połowie 2017 roku). Postanowiłem więc sprawdzić ile kosztuje taki wyjazd. 
+
+
 ### Zebranie danych
-#### kryteria wyszukiwania
 
-* Grecja, wyjazd od 1.09, powrót do 30.09
-* Samolotem z Warszawy, 2 dorosłych, 2 dzieci (4 i 7 lat)
-* All inclusive
+Aby cokolwiek analizować trzeba mieć dane. Jeśli nie mamy dostępu do baz oraz nie możemy (albo nie chcemy) ich kupić to można pokusić się o ich zebranie z sieci. Założeniem tego bloga jest to, aby kolejne analizy przygotowywać bez opłat (nie licząc czasu i kosztów typu serwery), zatem dane weźmiemy sobie sami.
 
 
-#### źródło danych
-#### miejsce na dane
-#### pobranie danych - skrypt i cron
+#### Kryteria wyszukiwania
+
+Skoro Grecja najpopularniejsza to niech będzie Grecja. Skoro pomysł pojawił się pod koniec kwietnia to niech będzie trochę czasu na zebranie danych - stąd termin wycieczki. Do tego dodajmy mniej więcej średnią polską rodzinę typu 2+2: dwoje dorosłych oraz dwoje dzieci, w tym jedno potrzebujące własnego łóżka, a drugie mieszczące się w tańszej taryfie (czasem za darmo). Przedszkolak i uczeń podstawówki.
+
+Podsumowując - kryteria są następujące:
+
+* kraj docelowy: Grecja
+* wyjazd od 1.09, powrót do 30.09
+* samolotem z Warszawy
+* dwoje dorosłych, dwoje dzieci (4 i 7 lat)
+* standard All inclusive
+
+
+
+#### Źródło danych
+
+Wiemy czego potrzebujemy, skąd to teraz zebrać? Najprościej z jakiegoś serwisu internetowego sprzedającego wycieczki (bo będzie tam w miarę ujednolicona forma prezentacji, a przede wszystkim - będą różni tour-operatorzy). Wybór padł na **Wakacje.pl**.
+
+> Nie, Wakacje.pl nie są sponsorem tego wpisu.<br/>
+> Sponsorem nie jest też żaden z organizatorów wycieczek, żaden rejon Grecji ani greckie miasto.<br/>
+> Nie ma sponsora. Po prostu.
+
+Nasz skrypt zbierający dane będzie wchodził na stronę, zadawał odpowiednie pytanie w wyszukiwarce, co wygeneruje odpowiedni link do strony z wynikami. I z tego gotowego linku korzystamy za każdym razem (zamiast wypełniać formularze). Strona z wynikami jest podzielona na ileś tam ofert za każdym razem (tyle, ile dostępnych jest wycieczek) - wystarczy je wszystkie przeczytać. To już było grane przy **[szukaniu mieszkań](/index.php/2017/04/06/mieszkanie-do-wynajecia/)** na wynajem czy **[samochodów](/index.php/2018/01/23/sprzedam-opla/)**, tutaj działa dokładnie tak samo.
+
+
+#### Miejsce na dane
+
+Dane zebrane można zapisywać w plikach, ale można też zapisywać do bazy danych. To ostatnie rozwiązanie jest o tyle przyjemne, że baza sobie przyrasta, a raz napisany skrypt po prostu bierze aktualny stan i wyrzuca odpowiedni raport. Skrypt pobierający dane zapisywał je do bazy PostgreSQL.
+
+
+#### Pobranie danych - skrypt i cron
+
+Nie będę tutaj przytaczał całego skryptu (jest dość nudny i mało rozwojowy), zainteresowani znajdą go [na moim GitHubie](https://github.com/prokulski/wycieczki_Grecja/blob/master/get_data.R). Swoją drogą zebrane dane też tam wpadły (jako plik *RDS*), być może komuś się przydadzą? W analizie wykorzystam plik statyczny a nie bazę - różnica jest żadna (bo plik jest wyeksportowany z bazy odpytanej przez `SELECT * FROM tabela;`).
+
+Dobrze, ale skrypt pobierający dane działa tak, że w momencie uruchomienia przechodzi przez oferty i zapisuje je sobie w bazie. Ale chcemy sprawdzić czy oferty zmieniają się z upływem czasu! Zatem trzeba wszystkie przechodzić na przykład codziennie. No to dodajemy uruchomienie skryptu do `cron`a (w systemach linuksowych; `crontab -e` i dopisujemy poniższą linijkę na koniec):
+
+```{bash, eval=FALSE}
+3 2 * * * Rscript /home/lemur/RProjects/wycieczki_grecja/get_data.R
+```
+
+i tyle. Czekamy aż skończy się wrzesień (bo najpóźniejsza wycieczka według naszych kryteriów może się zakończyć z końcem tegoż miesiąca).
+
+Warto co jakiś czas rzucić okiem czy wszystko działa, czy dane dopisują się do bazy, czy nie ma błędów. Ja czasem nie sprawdziłem i powstały dziury w ciągłości danych - są dni, z których brakuje informacji. Przyczyna była dość prosta: niektóre ogłoszenia miały dodatkowe parametry, które powodowały że tabelki z *przeczytanymi* ze strony danymi się rozsypywały. Wystarczyło dodać precyzyjne wybieranie kolumn, a nie liczyć na to że zawsze będzie tak samo.
+
 
 ### Analiza
-#### liczba wycieczek według daty
-#### gdzie są miejsca docelowe? (mapka)
-#### oceny wg regionów
-#### oceny wg tour-operatorów
-#### zmiana cen w czasie
-#### jakośc do ceny
+
+Mamy dane, przystępujemy więc do dzieła.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(glue)
+library(ggmap)
+
+# wczytanie danych z pliku statycznego
+wycieczki_db <- readRDS("wycieczki_all.RDS")
+```
+
+Jakie parametry zebraliśmy?
+
+```{r}
+glimpse(wycieczki_db)
+```
+
+Mamy termin wycieczki, standard ('wyzywienie'), organizatora, rejon i miejscowość razem z nazwą hotelu. Liczbę gwiazdek będącą oceną hotelu, ocenę wycieczki (nie wiem skąd ona pochodzi, jest niezmienna w czasie dla poszczególnych wycieczek). ID oferty, liczbę rezerwacji danej oferty w każdym z kolejnych dni, cenę za osobę oraz datę aktualizacji.
 
 
-### Jak wybra najlepszą wycieczkę?
-#### co jest dla nas ważne w wyborze wycieczki?
+#### Liczba dostępnych wycieczek według daty
+
+W pierwszej kolejności zobaczmy ile wycieczek udało się zebrać w kolejnych dniach:
+
+```{r grecja_01, fig.height=5, fig.width=9}
+plot <- wycieczki_db %>%
+  count(data_aktualizacji) %>%
+  ggplot(aes(data_aktualizacji, n)) +
+  geom_col(fill = "lightgreen") +
+  geom_smooth(se = FALSE, color = "darkgreen") +
+  labs(title = "Liczba zebranych ofert",
+       x = "Data pobrania danych", y = "Liczba zebranych ofert")
+
+da_plot(plot)
+```
+
+Widać wyraźnie dziury, w których skrypt się wywalał. Szkoda, że przypadło to akurat na drugą połowę sierpnia - tuż przed rozpoczęciem okresu jaki nas interesował. Nie chodzi nawet o ilość ofert zebranych w tych dniach, a o parametry (głównie ceny) tych ofert.
+
+Z grubsza widać że im bliżej terminu wyjazdu tym mniej ofert. To dość oczywiste - po prostu wycieczki się wyprzedają.
+
+
+#### Gdzie są miejsca docelowe? (mapka)
+
+Zobaczmy dokąd wiozą tour operatorzy. Do narysowania konturów Grecji wykorzystamy dane zawarte w pakiecie `ggmap`:
+
+```{r}
+greece_map <- map_data('world') %>% filter(region == "Greece")
+```
+
+Ale aby na mapie zaznaczyć punkt potrzebujemy jego współrzędnych. Mamy tylko region i nazwę miejscowości, potrzebujemy przetłumaczyć to na współrzędne geograficzne. Z pomocą przychodzi funkcja `mutate_geocode()` z pakietu `ggmap`.
+
+```{r eval = FALSE}
+# unikalne miejscowości
+miejsca <- wycieczki_db %>% distinct(region, miejscowosc)
+
+# szukamy ich współrzędnych
+miejsca <- miejsca %>%
+  mutate(location = paste0(.$miejscowosc, ", ", .$region, ", Greece")) %>%
+  mutate_geocode(location, source = "dsk", messaging = FALSE) %>%
+  # ograniczamy wyniki do znalexionych mniej więcej w obszarze Grecji
+  filter(lon >= 15, lon <= 35, lat >= 20) %>%
+  # i tych, które mają jakieś dane w ogóle
+  na.omit()
+```
+```{r echo=FALSE}
+miejsca <- readRDS("miejsca.RDS")
+```
+
+Chwilę to trwa, w końcu musimy odpytać API o `r nrow(miejsca)` miejsc. Na koniec możemy to sobie narysować na mapce:
+
+```{r grecja_02}
+plot <- ggplot() +
+  geom_polygon(data = greece_map, aes(long, lat, group=group),
+               fill = "#e5f5e0", color = "black") +
+  geom_point(data = miejsca, aes(lon, lat, color = region)) +
+  coord_quickmap() + 
+  theme(axis.text.x = element_blank(), axis.text.y = element_blank()) +
+  labs(title = "Dokąd wożą tour operatorzy?", x = "", y = "")
+
+da_plot(plot)
+```
+
+
+#### Oceny według regionów
+
+Czy wycieczki do konkretnych miejscowości (miasta) różnią się oceną? Jeśli tak - wskazywałoby to w uproszczeniu, że jedne rejony są bardziej atrakcyjne niż inne. Sprawdźmy na mapie, dodając punktom z mapki powyżej kolor zależny od średniej oceny wycieczki:
+
+```{r grecja_03}
+oceny <- left_join(miejsca,
+                   wycieczki_db %>% select(region, miejscowosc, ocena_wycieczki),
+                   by = c("region"="region", "miejscowosc"="miejscowosc")) %>%
+  group_by(lon, lat) %>%
+  summarise(mocena = mean(ocena_wycieczki, na.rm = TRUE)) %>%
+  ungroup() %>%
+  filter(!is.na(mocena)) %>%
+  mutate(mocena_round = round(mocena))
+
+plot <- ggplot() +
+  geom_polygon(data = greece_map,
+               aes(long, lat, group=group),
+               fill = "#e5f5e0", color = "#bdbdbd") +
+  geom_point(data = oceny,
+             aes(lon, lat, color = mocena),
+             size = 3) +
+  scale_color_gradient(low="#fde0dd", high="#de2d26") +
+  coord_quickmap() +
+  facet_wrap(~mocena_round) +
+  labs(title = "Ocena miejsc na podstawie ocen wycieczek",
+       x = "", y = "", color = "Średnia\nocena\nwycieczek\nw mieście")
+
+da_plot(plot)
+```
+
+Przede wszystkim widać, że najwięcej jest ocen 7 i 8 - na tych panelach mamy najwięcej punktów. To naturalne, wszędzie tak jest (czy to o oceny wycieczek czy np. filmów chodzi). Czy z powyższych map można wyczytać, że jedne rejony są bardziej atrakcyjne niż inne? Według mnie nie...
+
+Możemy to sprawdzić i policzyć ocenę według regionów:
+
+```{r}
+# tabela z finalnymi informacjami o wycieczce
+wycieczki_uniq <- wycieczki_db %>%
+  # bierzemy tylko najnowszse dane dla każdej wycieczki
+  group_by(id_wycieczki) %>%
+  filter(data_aktualizacji  == max(data_aktualizacji )) %>%
+  # wycieczka musi miec ocenę
+  filter(!is.na(ocena_wycieczki)) %>%
+  ungroup()
+
+
+wycieczki_uniq %>%
+  # grupujemy wycieczki po regionach
+  group_by(region) %>%
+  # i liczymy ile wycieczek jest do danego regionu oraz jaka jest średnia ocena
+  summarise(n = n(),
+            sr_ocena = round(mean(ocena_wycieczki, na.rm = TRUE), 2)) %>%
+  ungroup() %>%
+  # całośc układamy od najlepszej śrdeniej oceny
+  arrange(desc(sr_ocena)) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+Najlepiej wypada **Zatoka Koryncka** i **wyspa Kos**. Pytanie czy nie powinniśmy waży ocen liczbą (kolumna *n*) wycieczek do danego regionu? W końcu im więcej ocen tym bardziej stabilny wynik... Na Filmwebie ocena średnia stabilizuje się po zdaje się około 150-200 oddanych głosów (badałem, możecie zaufać).
+
+
+#### Oceny według tour operatorów
+
+Dokładnie taką samą tabelę możemy przygotować dla porównania tour operatorów:
+
+```{r}
+wycieczki_uniq %>%
+  # grupujemy wycieczki po regionach
+  group_by(organizator) %>%
+  # i liczymy ile wycieczek jest do danego regionu oraz jaka jest średnia ocena
+  summarise(n = n(),
+            sr_ocena = round(mean(ocena_wycieczki, na.rm = TRUE), 2)) %>%
+  ungroup() %>%
+  # całośc układamy od najlepszej śrdeniej oceny
+  arrange(desc(sr_ocena)) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+Najlepiej ocenianymi organizatorami są ci najwięksi gracze: TUI, Neckermann. Będziemy się im jeszcze przyglądać, spokojnie.
+
+
+#### Zmiana cen w czasie
+
+Teraz to co najciekawsze chyba - **czy im bliżej wycieczki tym niższa jest jej cena?**
+
+```{r grecja_04}
+plot <- wycieczki_db %>%
+  group_by(data_aktualizacji, region) %>%
+  summarize(sr_cena = mean(cena_za_osobe, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(data_aktualizacji, sr_cena)) +
+  geom_point(color = "lightgreen", alpha = 0.8) +
+  geom_smooth(color = "darkgreen") +
+  facet_wrap(~region, scales = "free") +
+  labs(title = "Średnia cena za osobę wycieczki do Grecji, według regionów",
+       subtitle = "Parametry wycieczki: wyjazd 1-30.09, samolotem z Warszawy, 2 dorosłych, 2 dzieci (4 i 7 lat), All inclusive\nDane zebrane w okresie maj-wrzesień 2018 z serwisu Wakacje.pl",
+       x = "Data oferty", y = "Średnia cena/osobę")
+
+da_plot(plot)
+```
+
+Zwróć uwagę, że skala na osi Y dla każdego z wykresów jest inna - czasem cena spada o 1500 zł (patrz Peloponez), czasem tylko o 200 zł (Lesbos). Bez względu na różnicę w cenie wniosek jest jeden: im bliżej terminu wyjazdu tym niższa cena. Zatem istnieje coś takiego jak *last minute* i rzeczywiście z grubsza biorąc są to atrakcyjne cenowo oferty.
+
+W każdym razie: **na około 50-60 dni przed wycieczką cena zaczyna spadać**.
+
+Innym zagadnieniem jest to, czy pozostają jeszcze miejsca na upatrzonej wycieczce, czy też się wyprzedały...
+
+
+#### Jak szybko znikają wycieczki?
+
+Możemy to sprawdzić na podstawie liczby rezerwacji. Zobaczmy *na totalu* - skumulowana liczba rezerwacji dla wszystkich wycieczek w zależności od liczby dni przed wycieczką przedstawia się następująco:
+
+```{r grecja_05, fig.height=5, fig.width=9}
+plot <- wycieczki_db %>%
+  mutate(dni_przed_wycieczka = termin_wycieczki - data_aktualizacji) %>%
+  group_by(dni_przed_wycieczka) %>%
+  summarise(rez = sum(liczba_rezerwacji, na.rm = TRUE )) %>%
+  ungroup() %>%
+  arrange(-dni_przed_wycieczka) %>%
+  mutate(rez = cumsum(rez)) %>%
+  ggplot() +
+  geom_smooth(aes(dni_przed_wycieczka, rez)) +
+  scale_y_log10() +
+  scale_x_reverse() +
+  labs(title = "Skumulowana liczba rezerwacji",
+       x = "Liczba dni do wyjazdu", y = "Liczba rezerwacji (skala logarytmiczna)")
+
+da_plot(plot)
+```
+
+Skala Y jest logarytmiczna dzięki czemu lepiej widać dynamikę. Co tutaj widać? Ano to, że im bliżej wycieczek tym mniej przybywa rezerwacji. Nie wiemy ile jest wszystkich miejsc (gdzie jest górna granica), ale zakładając, że na koniec wszystkie są sprzedane to będzie to około 10 milionów co jest liczbą zaskakującą. Najwięcej było `r max(wycieczki_db$liczba_rezerwacji, na.rm=T)` rezerwacji dla jednej wycieczki, było to w dniu wyjazdu. Skąd więc 10 mln? Tę samą wycieczkę liczymy kilkadziesiąt razy, z różną liczbą rezerwacji dzień po dniu. I to jest pułapka albo i błąd.
+
+Jeśli weźmiemy rozkład liczby rezerwacji w zależności od czasu przed wyjazdem, to wygląda on następująco:
+
+```{r grecja_06, fig.height=5, fig.width=9}
+plot <- wycieczki_db %>%
+  mutate(dni_przed_wycieczka = termin_wycieczki - data_aktualizacji) %>%
+  group_by(dni_przed_wycieczka) %>%
+  summarise(rez = sum(liczba_rezerwacji, na.rm = TRUE )) %>%
+  ungroup() %>%
+  arrange(-dni_przed_wycieczka) %>%
+  ggplot() +
+  geom_smooth(aes(dni_przed_wycieczka, rez)) +
+  scale_x_reverse() +
+  labs(title = "Liczba rezerwacji",
+       x = "Liczba dni do wyjazdu", y = "Liczba rezerwacji")
+
+da_plot(plot)
+```
+
+i to jest bardziej prawdopodobne: na około 50 dni przed wycieczką albo dana impreza jest w całości wyprzedana i znika z ogłoszeń, albo pozostają jakieś *spady*.
+
+Łączna liczba rezerwacji w dostępnych danego dnia wycieczkach wygląda następująco:
+
+```{r grecja_07, fig.height=5, fig.width=9}
+plot <- wycieczki_db %>%
+  group_by(data_aktualizacji) %>%
+  summarise(rez = sum(liczba_rezerwacji, na.rm = TRUE )) %>%
+  ungroup() %>%
+  ggplot() +
+  geom_smooth(aes(data_aktualizacji, rez)) +
+  labs(title = "Liczba rezerwacji w dostępnych ofertach",
+       x = "Data", y = "Liczba rezerwacji")
+
+da_plot(plot)
+```
+
+co może potwierdzać powyższą tezę. Ile jest dostępnych miejsc? Stawiałbym na okolice szczytu tego ostatniego wykresu, czyli jakieś 12-13 tysięcy (dla wybranych parametrów wyjazdu oczywiście).
+
+
+### Jak wybrać najlepszą wycieczkę?
+
+Przede wszystkim musimy określić **co jest dla nas ważne w wyborze wycieczki?** Musimy ograniczyć się do posiadanych danych, a do wyboru mamy właściwie tylko trzy cechy liczbowe (*ciągłe*) opisujące wycieczki:
+
 * ocena hotelu
 * ocena wycieczki
 * cena
+
+Dodatkowo możemy na podstawie tych cech wybrać najlepiej ocenianych tour operatorów, regiony, miejscowości czy nawet hotele (kolejne cztery cechy, tym razem *kategoryczne*). Zbudujmy więc prosty model oceny.
+
+W pierwszej kolejności jednak przyda nam się funkcja normalizująca (dziwi mnie, że nie ma jej w standardowych bibliotekach R) - która cały zbiór liczb sprowadzi do zakresu 0-1.
+
+```{r}
+normalize <- function(x) { return ((x - min(x))/(max(x)-min(x))) }
+```
+
+
+Teraz policzmy średnie z ocen, ceny i liczby gwiazdek hotelu dla organizatorów i miejscowości (regionów co za tym idzie):
+
+```{r}
+# ważność składowych w modelu
+waga_gwiazdki <- 3
+waga_ocena <- 6
+waga_cena <- 4
+waga_liczba_wycieczek <- 1
+
+# wyliczenie oceny wg modelu
+df <- wycieczki_uniq %>%
+  group_by(organizator, region, miejscowosc) %>%
+  summarise(sr_gwiazdki = mean(hotel_gwiazdki, na.rm = TRUE),
+            sr_ocena_wycieczki = mean(ocena_wycieczki, na.rm = TRUE),
+            n_wycieczek = n(),
+            sr_cena_za_osobe = mean(cena_za_osobe, na.rm = TRUE)) %>%
+  ungroup() %>%
+  na.omit() %>%
+  mutate(sr_gwiazdki_scale = normalize(sr_gwiazdki),
+         sr_ocena_wycieczki_scale = normalize(sr_ocena_wycieczki),
+         sr_cena_za_osobe = 1 - normalize(sr_cena_za_osobe)) %>%
+  mutate(ocena = normalize(waga_gwiazdki*sr_gwiazdki * waga_ocena*sr_ocena_wycieczki * waga_cena*sr_cena_za_osobe * waga_liczba_wycieczek*log10(n_wycieczek+1))) %>%
+  mutate(ocena_przedzial = cut(ocena, breaks = seq(-0.1, 1.1, 0.1)))
+```
+
+Wyliczone średnie zostały znormalizowane, a dodatkowo wyższą ocenę dostają wycieczki tańsze (stąd *1 - znormalizowana średnia cena*). Ostatnie dwie linijki powyższego kodu to:
+
+* zbudowanie jednej wartości opisującej finalną ocenę - składa się na nią:
+   + średnia z gwiazdek (z wagą 3)
+   + średnia z ocen (z wagą 6)
+   + średnia cena (z wagą 4)
+   + oraz zlogarytmowana liczba wycieczek (z wagą 1). To ostatnie dlatego, że być może im więcej wycieczek tym bardziej atrakcyjne miejsce? Jakoś warto to uwzględnić
+* przypisanie oceny finalnej do przedziału co 0.1 punktu (przyda się za chwilę)
+
+
+Na wykresie pokażmy zależność oceny finalnej od jakości hotelu (liczba jego gwiazdek) i oceny wycieczki:
+
+```{r grecja_08}
+plot <- ggplot(df) +
+  geom_point(aes(sr_ocena_wycieczki, sr_gwiazdki,
+                 color = ocena, size = ocena),
+             alpha = 0.8) +
+  coord_equal() +
+  scale_size(range = c(0.5, 5)) +
+  scale_color_gradient(low="#fde0dd", high="#de2d26") +
+  labs(title = "Ocena finalna wycieczki według założonego modelu",
+       x = "Średnia ocena wycieczki", y = "Liczba gwiazdek hotelu")
+
+da_plot(plot)
+```
+
+Gdyby patrzyć tylko na ocenę wycieczki i hotelu interesowałyby nas te najlepsze - z górnej prawej strony. Ale dodatkowym kryterium jest cena, co odbija się w finalnej ocenie zaprezentowanej kolorem i rozmiarem punktu na wykresie. Najbardziej interesujące są więc najbardziej czerwone punkty, a im bardziej ten czerwony w prawo i w górę tym w sumie jeszcze lepiej.
+
+
+Wykorzystajmy tak wyliczone oceny do wyboru najlepszych organizatorów:
+
+```{r grecja_09}
+plot <- df %>%
+  group_by(organizator, ocena_przedzial) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(organizator) %>%
+  mutate(p = n/sum(n)) %>%
+  ungroup() %>% filter(p != 0) %>%
+  ggplot() +
+  geom_tile(aes(ocena_przedzial, organizator, fill = p), color = "gray80", show.legend = FALSE) +
+  geom_text(aes(ocena_przedzial, organizator, label = sprintf("%.0f%%", 100*p))) +
+  scale_fill_distiller(palette = "GnBu") +
+  labs(title = "Ocena według organizatorów",
+       x = "Przedział ocen", y = "")
+
+da_plot(plot)
+```
+
+Wykres pokazuje udział procentowy danej oceny (przypisanej do przedziału) dla poszczególnych organizatorów. I tak np. widzimy, że *Sun & Fun* w 2/3 dostaje oceny (te nasze finalne, według modelu) na poziomie 0.2-0.3 punktu. Interesującym organizatorem jest w moim odczuciu ktoś, kto ma oceny ponad 0.8, a więc:
+
+```{r}
+wybrane_organizator <- c("Wezyr", "TUI", "Rainbow", "Grecos")
+```
+
+
+W analogiczny sposób wybierzmy najlepiej ocenione (wg modelu) regiony:
+
+```{r grecja_10}
+plot <- df %>%
+  group_by(region, ocena_przedzial) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(region) %>%
+  mutate(p = n/sum(n)) %>%
+  ungroup() %>% filter(p != 0) %>%
+  ggplot() +
+  geom_tile(aes(ocena_przedzial, region, fill = p), color = "gray80", show.legend = FALSE) +
+  geom_text(aes(ocena_przedzial, region, label = sprintf("%.0f%%", 100*p))) +
+  scale_fill_distiller(palette = "GnBu") +
+  labs(title = "Ocena według regionów",
+       x = "Przedział ocen", y = "")
+
+da_plot(plot)
+```
+
+Tutaj wybieramy trójkę z najlepszymi ocenami - są to:
+
+```{r}
+wybrane_region <- c("Kreta", "Rodos", "Kos")
+```
+
+Zobaczmy jeszcze w tabeli top 10 ocenianych (wg modelu) razem ze składowymi:
+
+```{r}
+df %>%
+  top_n(10, ocena) %>%
+  arrange(desc(ocena)) %>%
+  select(organizator, region, miejscowosc, ocena, sr_gwiazdki, sr_ocena_wycieczki, sr_cena_za_osobe) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+Widzimy, że regiony i organizatorzy pokrywają się z tym co wybraliśmy na podstawie wykresów. Dorzućmy jeszcze listę wybranych miast:
+
+```{r}
+wybrane_miejscowosc <- c("Hersonissos", "Chania", "Faliraki", "Ixia", "Kolymbia", "Kiotari", "Georgioupolis")
+```
+
+Teraz z wybranych regionów, miast i organizatorów wybieramy najlepszą ofertę spośród wszystkich wycieczek:
+
+```{r}
+wycieczki_db %>%
+  filter(organizator %in% wybrane_organizator,
+         region %in% wybrane_region,
+         miejscowosc %in% wybrane_miejscowosc) %>%
+  group_by(id_wycieczki) %>%
+  filter(data_aktualizacji == max(data_aktualizacji),
+         !is.na(hotel_gwiazdki), !is.na(ocena_wycieczki), !is.na(cena_za_osobe)) %>%
+  ungroup() %>%
+  mutate(gwiazdki_scale = normalize(hotel_gwiazdki),
+         ocena_wycieczki_scale = normalize(ocena_wycieczki),
+         cena_za_osobe_scale = 1- normalize(cena_za_osobe)) %>%
+  mutate(ocena = normalize(3*gwiazdki_scale * 6*ocena_wycieczki_scale * 4*cena_za_osobe_scale)) %>%
+  select(organizator, region, miejscowosc, hotel_nazwa, hotel_gwiazdki, ocena_wycieczki, ocena, cena_za_osobe) %>%
+  top_n(10, ocena) %>%
+  arrange(desc(ocena)) %>%
+  select(organizator, region, miejscowosc, hotel_nazwa, ocena, hotel_gwiazdki, ocena_wycieczki, cena_za_osobe) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+Wygrywa hotel *Princess Andriana* odwiedzony z Grecos - na Wakacje.pl była to [jedna z ofert](https://www.wakacje.pl/oferty/grecja/rodos/kiotari/princess-andriana-472864.html).
+
+Czy ten model jest najlepszy? Może wagi nie są dobrane optymalnie? Warto popróbować zmienić wagi, może sposób ich liczenia (nie mnożyć a dodawać ważone składowe). Zaproponowałem jedno rozwiązanie, możecie wypracować inne.
+
+Największy problem modelowania tego typu to brak informacji zwrotnej od uczestników konkretnych wycieczek. Bo nie do końca wiemy co oznacza ocena wycieczki w serwisie Wakacje.pl (może i oni gdzieś to tłumaczą, ale nie szukałem :P). **Nie mamy prawdy**, nie możemy uczyć i testować modelu, bo nie mamy punktu odniesienia. Ostatnio robię kilka takich projektów i to jest największy w nich problem: *czy te liczby, które wychodzą są prawdziwe?*
+
+
+### A gdyby tak nie z tour operatorem?
+
+Abstrahując od tego wszystkiego - coś policzyliśmy, coś wybraliśmy. Średnia cena za osobę dla najlepszej wybranej wyżej wycieczki to prawie 4 tysiące złotych (obecnie cena jest niższa, ale jesteśmy po sezonie). Dla rodziny 2+2 to już robi się 16 tysięcy. Zgodnie z informacją w ofercie jest to 7 dni. W tym mamy przelot, zakwaterowanie, jedzenie i jakieś hotelowe atrakcje.
+
+Jakby *trochę przyjanuszyć* i zorganizować wszystko na własną rękę mamy (wynik 30 minut szukania, można postarać się o wiele bardziej) - dla tygodniowej wizyty w Kiotari:
+
+* **samolot z Warszawy w obie strony** na Rodos dla gromady 2+2 kupiony teraz na 19-26 stycznia (czyli poza sezonem świątecznym i kupując bilety odpowiednio wcześnie) **to około 2100 zł** (z jedną przesiadką max 2h w Atenach na obu lotach)
+* **wynajęcie samochodu typu Compact SUV** na ten tydzień razem z dwoma fotelikami to jakieś 400 euro (wg sieci Avis) czyli powiedzmy **1750 zł**. Samochód po to, aby dojechać na drugą stronę wyspy (z lotniska do Kiotari) i swobodnie się po niej poruszać
+* całe **mieszkanie** znalezione na AirBnB to niech będzie 300 zł za dobę (można i taniej) - **2100 zł**
+* porównując ceny za pomocą MacIndex (lokalna cena Big Maca) mamy 3.84 euro w Grecji do 2.69 euro w Polsce, zatem możemy przyjąć że ceny są około 1.4 razy wyższe. Obiad dla rodziny 2+2 w Warszawie w przyzwoitej restauracji to powiedzmy 150-200 zł. Śniadanie i kolacja niech będzie drugie tyle (z rzeczy kupionych w sklepie). **Daje to** 600 zł (już po przeliczeniu na ceny greckie) **na posiłki** dziennie, **4200 zł na tydzień**
+* **w sumie** mamy **około 10 tysięcy zł**, jakieś 2/3 ceny wycieczki
+
+To wersja dla wolących wolność, nie lubiących hotelowych basenów zapchanych po brzegi. Osobiście wolę wyprawy na własną rękę niż z biurem podróży. 
+
+
+Szukanie na AirBnB to osobny rozdział. Na ten temat jest masa ciekawych tekstów w idei podobnych do powyższego, z w miarę nowych polecam [Exploring & Machine Learning for Airbnb Listings in Toronto](https://towardsdatascience.com/exploring-machine-learning-for-airbnb-listings-in-toronto-efdbdeba2644) z przykładami w Pythonie.
+
+
+
+Te wycieczki takie drogie... to ja może już zacznę **[zbierać na kolejne wakacje ;-)](https://www.paypal.me/prokulski/10pln)**. Jak zwykle zapraszam do polubienia fanpage'a **[Dane i Analizy](http://fb.com/DaneAnalizy)**.
+
+W dodatku wycieczka może się nie udać i **[urlop zmarnowany](http://blog.zmarnowanyurlop.pl/)**. W takim przypadku można spróbować odzyskać pieniądze, pomocna może być na przykład [kancelaria Kempa i Wspólnicy](http://kempaiwspolnicy.pl/), która specjalizuje się w takich sprawach. Śledźcie ich [fanpage](https://www.facebook.com/Zmarnowanyurlop.pl/), tam więcej o wakacjach z biurem podróży, bez stresu.

@@ -1,5 +1,3 @@
-rm(list = ls())
-
 library(tidyverse)
 library(rvest)
 library(glue)
@@ -10,11 +8,12 @@ library(RPostgreSQL)
 
 # dostęp do bazy danych
 source("db_login.R")
+# w środku:
+# dbname = nazwa bazy
+# dbuser = użytkownik bazy
+# dbpassword = hasło do bazy
+# dbhost = serwer
 
-# założenia:
-# Grecja, wyjazd od 1.09, powrót do 30.09
-# Samolotem z Warszawy, 2 dorosłych, 2 dzieci (4 i 7 lat)
-# All inclusive
 
 # ile mamy stron wyników?
 first_page_url <- "https://www.wakacje.pl/wczasy/grecja/?od-2018-09-01,do-2018-09-30,7-dni,samolotem,all-inclusive,z-warszawy,2dorosle-2dzieci-4-7lat"
@@ -33,7 +32,9 @@ if(is_empty(page_count)) {
 }
 
 
+# tabelka na wyniki
 wyniki <- tibble()
+
 # pobieranie danyc z kolejnych stron
 for(strona in 1:page_count) {
    cat(glue("\rPobieram stronę: {strona} z {page_count}\n"))
@@ -170,6 +171,7 @@ for(strona in 1:page_count) {
 
 # poprawka daty itp
 wyniki <- wyniki %>%
+   # prezycyjne wybieranie kolumn uchroni Cię przed problemami w przyszłości :D
    select(Termin, Wyżywienie, Organizator, region, miejscowosc,
           ocena, hotel_nazwa, hotel_gwiazdki,
           id, liczba_rezerwacji, cena_za_osobe) %>%
@@ -184,7 +186,6 @@ wyniki <- wyniki %>%
 
 
 # zapisanie danych do bazy
-
 sterownik <- dbDriver("PostgreSQL")
 polaczenie <- dbConnect(sterownik, dbname = dbname, user = dbuser, password = dbpassword, host = dbhost)
 dbWriteTable(polaczenie, "wycieczki_grecja", wyniki, append = TRUE, row.names = FALSE)
