@@ -19,12 +19,19 @@ source("db_login.R")
 # ile mamy stron wyników?
 first_page_url <- "https://www.wakacje.pl/wczasy/grecja/?od-2018-09-01,do-2018-09-30,7-dni,samolotem,all-inclusive,z-warszawy,2dorosle-2dzieci-4-7lat"
 first_page <- read_html(first_page_url)
-page_count <- first_page %>% html_node("div.paging") %>% html_node("span.m") %>% html_nodes("a.p") %>% html_text()
+
+page_count <- first_page %>%
+   html_node("div.paging") %>%
+   html_node("span.m") %>%
+   html_nodes("a.p") %>%
+   html_text()
+
 if(is_empty(page_count)) {
    page_count <- 1
 } else {
    page_count <- page_count[length(page_count)] %>% as.numeric()
 }
+
 
 wyniki <- tibble()
 # pobieranie danyc z kolejnych stron
@@ -163,7 +170,9 @@ for(strona in 1:page_count) {
 
 # poprawka daty itp
 wyniki <- wyniki %>%
-   select(Termin, Wyżywienie, Organizator, region, miejscowosc, ocena, hotel_nazwa, hotel_gwiazdki, id, liczba_rezerwacji, cena_za_osobe) %>%
+   select(Termin, Wyżywienie, Organizator, region, miejscowosc,
+          ocena, hotel_nazwa, hotel_gwiazdki,
+          id, liczba_rezerwacji, cena_za_osobe) %>%
    mutate(Termin = str_sub(Termin, 1, 10) %>% dmy()) %>%
    mutate(data_aktualizacji = today()) %>%
    # select(-Wylot, -kraj) %>%

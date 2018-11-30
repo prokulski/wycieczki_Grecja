@@ -257,3 +257,4 @@ wycieczki_db %>%
 
 # wygrywa ta https://www.grecos.pl/wakacje/grecja/hotel-princess-andriana oferta
 # na wakacje.pl było to https://www.wakacje.pl/oferty/grecja/rodos/kiotari/princess-andriana-472864.html
+# https://towardsdatascience.com/exploring-machine-learning-for-airbnb-listings-in-toronto-efdbdeba2644

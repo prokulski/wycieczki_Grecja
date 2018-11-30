@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 db_login.R
+blog_post_files/*
+blog_post.html

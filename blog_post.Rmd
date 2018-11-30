@@ -1,0 +1,59 @@
+---
+title: "Wycieczki do Grecji"
+author: "Łukasz Prokulski"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    fig_height: 6
+    fig_width: 8
+    fig_align: "center"
+    self_contained: no
+---
+
+```{r document_setup, echo=FALSE, message=FALSE, error=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+
+# chunks options
+opts_chunk$set(message = FALSE, error = FALSE, warning = FALSE)
+options(knitr.table.format = "html") 
+
+# some better colours theme :)
+theme_set(theme_minimal() +
+            theme(plot.title = element_text(family = NULL, face = "bold", size = 18, color = "black"),
+                  plot.subtitle = element_text(family = NULL, face = "plain", size = 9, color = "black"),
+                  plot.caption = element_text(family = NULL, face = "italic", size = 9, color = "darkgray"),
+                  plot.background = element_rect(fill="#efefef", color="#aaaaaa"),
+                  panel.background = element_rect(fill = "white", color="black"),
+                  strip.text.x = element_text(face = "bold")))
+
+source("/home/lemur/RProjects/!Rmarkdown_templates/da_plot.R")
+```
+
+### Zebranie danych
+#### kryteria wyszukiwania
+
+* Grecja, wyjazd od 1.09, powrót do 30.09
+* Samolotem z Warszawy, 2 dorosłych, 2 dzieci (4 i 7 lat)
+* All inclusive
+
+
+#### źródło danych
+#### miejsce na dane
+#### pobranie danych - skrypt i cron
+
+### Analiza
+#### liczba wycieczek według daty
+#### gdzie są miejsca docelowe? (mapka)
+#### oceny wg regionów
+#### oceny wg tour-operatorów
+#### zmiana cen w czasie
+#### jakośc do ceny
+
+
+### Jak wybra najlepszą wycieczkę?
+#### co jest dla nas ważne w wyborze wycieczki?
+* ocena hotelu
+* ocena wycieczki
+* cena
